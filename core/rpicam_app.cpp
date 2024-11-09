@@ -462,7 +462,82 @@ void RPiCamApp::ConfigureZsl(unsigned int still_flags)
 
 	post_processor_.Configure();
 
-	LOG(2, "ZSL setup complete");
+    LOG(2, "ZSL setup complete");
+}
+
+void RPiCamApp::ConfigureTracker()
+{
+    LOG(2, "Configuring camera for tracker ...");
+
+    bool have_lores_stream = true;
+    StreamRoles stream_roles = { StreamRole::VideoRecording };
+    int lores_index = 1;
+    if (!options_->no_raw)
+        stream_roles.push_back(StreamRole::Raw), lores_index++;
+    if (have_lores_stream)
+        stream_roles.push_back(StreamRole::Viewfinder);
+    configuration_ = camera_->generateConfiguration(stream_roles);
+    if (!configuration_)
+        throw std::runtime_error("failed to generate video configuration");
+
+    // Now we get to override any of the default settings from the options_->
+    StreamConfiguration &cfg = configuration_->at(0);
+    cfg.pixelFormat = libcamera::formats::RGB888;
+    cfg.bufferCount = 6; // 6 buffers is better than 4
+    if (options_->buffer_count > 0)
+        cfg.bufferCount = options_->buffer_count;
+    if (options_->width)
+        cfg.size.width = options_->width;
+    if (options_->height)
+        cfg.size.height = options_->height;
+//    if (flags & FLAG_VIDEO_JPEG_COLOURSPACE)
+//        cfg.colorSpace = libcamera::ColorSpace::Sycc;
+    else if (cfg.size.width >= 1280 || cfg.size.height >= 720)
+        cfg.colorSpace = libcamera::ColorSpace::Rec709;
+    else
+        cfg.colorSpace = libcamera::ColorSpace::Smpte170m;
+    configuration_->orientation = libcamera::Orientation::Rotate0 * options_->transform;
+
+    post_processor_.AdjustConfig("video", &configuration_->at(0));
+
+    if (!options_->no_raw)
+    {
+        options_->mode.update(configuration_->at(0).size, options_->framerate);
+        options_->mode = selectMode(options_->mode);
+
+        configuration_->at(1).size = options_->mode.Size();
+        configuration_->at(1).pixelFormat = mode_to_pixel_format(options_->mode);
+        configuration_->sensorConfig = libcamera::SensorConfiguration();
+        configuration_->sensorConfig->outputSize = options_->mode.Size();
+        configuration_->sensorConfig->bitDepth = options_->mode.bit_depth;
+        configuration_->at(1).bufferCount = configuration_->at(0).bufferCount;
+    }
+
+    if (have_lores_stream)
+    {
+        Size lores_size(options_->lores_width, options_->lores_height);
+        lores_size.alignDownTo(2, 2);
+        if (lores_size.width > configuration_->at(0).size.width ||
+            lores_size.height > configuration_->at(0).size.height)
+            throw std::runtime_error("Low res image larger than video");
+        configuration_->at(lores_index).pixelFormat = libcamera::formats::YUV420;
+        configuration_->at(lores_index).size = lores_size;
+        configuration_->at(lores_index).bufferCount = configuration_->at(0).bufferCount;
+    }
+    configuration_->orientation = libcamera::Orientation::Rotate0 * options_->transform;
+
+    configureDenoise(options_->denoise == "auto" ? "cdn_fast" : options_->denoise);
+    setupCapture();
+
+    streams_["video"] = configuration_->at(0).stream();
+    if (!options_->no_raw)
+        streams_["raw"] = configuration_->at(1).stream();
+    if (have_lores_stream)
+        streams_["lores"] = configuration_->at(lores_index).stream();
+
+    post_processor_.Configure();
+
+    LOG(2, "tracker camera setup complete");
 }
 
 void RPiCamApp::ConfigureStill(unsigned int flags)
@@ -665,10 +740,7 @@ void RPiCamApp::StartCamera()
 			LOG(2, "Using crop (lores) " << crops.back().toString());
 		}
 
-		if (options_->GetPlatform() == Platform::VC4)
-			controls_.set(controls::ScalerCrop, crops[0]);
-		else
-			controls_.set(controls::rpi::ScalerCrops, libcamera::Span<const Rectangle>(crops.data(), crops.size()));
+		controls_.set(controls::rpi::ScalerCrops, libcamera::Span<const Rectangle>(crops.data(), crops.size()));
 	}
 
 	if (!controls_.get(controls::AfWindows) && !controls_.get(controls::AfMetering) && options_->afWindow_width != 0 &&
