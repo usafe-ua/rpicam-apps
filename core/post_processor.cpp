@@ -184,7 +184,7 @@ void PostProcessor::Configure()
 void PostProcessor::Start()
 {
 	quit_ = false;
-	output_thread_ = std::thread(&PostProcessor::outputThread, this);
+//	output_thread_ = std::thread(&PostProcessor::outputThread, this);
 
 	for (auto &stage : stages_)
 	{
@@ -200,28 +200,31 @@ void PostProcessor::Process(CompletedRequestPtr &request)
 		return;
 	}
 
-	std::unique_lock<std::mutex> l(mutex_);
-	requests_.push(std::move(request)); // caller has given us ownership of this reference
+//	std::unique_lock<std::mutex> l(mutex_);
+//	requests_.push(std::move(request)); // caller has given us ownership of this reference
 
-	std::promise<bool> promise;
-	auto process_fn = [this](CompletedRequestPtr &request, std::promise<bool> promise) {
-		bool drop_request = false;
-		for (auto &stage : stages_)
-		{
-			if (stage->Process(request))
-			{
-				drop_request = true;
-				break;
-			}
-		}
-		promise.set_value(drop_request);
-		cv_.notify_one();
-	};
+//    CompletedRequestPtr &request = requests_.back();
+//	std::promise<bool> promise;
 
+    bool drop_request = false;
+    for (auto &stage : stages_)
+    {
+        if (stage->Process(request))
+        {
+            drop_request = true;
+            break;
+        }
+    }
+//    promise.set_value(drop_request);
+//    cv_.notify_one();
+    if (!drop_request)
+    {
+        callback_(request);
+    }
 	// Queue the futures to ensure we have correct ordering in the output thread. The promise/future return value
 	// tells us when all the streams for this request have been processed and output_ready_callback_ can be called.
-	futures_.push(promise.get_future());
-	std::thread { process_fn, std::ref(requests_.back()), std::move(promise) }.detach();
+//	futures_.push(promise.get_future());
+//	std::thread { process_fn, std::ref(requests_.back()), std::move(promise) }.detach();
 }
 
 void PostProcessor::outputThread()
