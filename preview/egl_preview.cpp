@@ -19,6 +19,7 @@
 
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
+#include <X11/Xatom.h>
 // We don't use Status below, so we could consider #undefining it here.
 // We do use None, so if we had to #undefine it we could replace it by zero
 // in what follows below.
@@ -237,6 +238,14 @@ static void no_border(Display *display, Window window)
 					(unsigned char *)&motif_hints, /* data */
 					PROP_MOTIF_WM_HINTS_ELEMENTS /* nelements */
 	);
+
+
+    Atom atoms[2] = { XInternAtom(display, "_NET_WM_STATE_FULLSCREEN", False), None };
+
+    XChangeProperty(
+        display, window,
+        XInternAtom(display, "_NET_WM_STATE", False),
+        XA_ATOM, 32, PropModeReplace, (unsigned char*)atoms, 1);
 }
 
 void EglPreview::makeWindow(char const *name)
@@ -260,6 +269,7 @@ void EglPreview::makeWindow(char const *name)
 		x_ = y_ = 0;
 		width_ = DisplayWidth(display_, screen_num);
 		height_ = DisplayHeight(display_, screen_num);
+        attr.cursor  = 0;//remove cursor
 	}
 
 	static const EGLint attribs[] =
@@ -289,6 +299,7 @@ void EglPreview::makeWindow(char const *name)
 	attr.border_pixel = 0;
 	attr.colormap = XCreateColormap(display_, root, visinfo->visual, AllocNone);
 	attr.event_mask = StructureNotifyMask | ExposureMask | KeyPressMask;
+
 	/* XXX this is a bad way to get a borderless window! */
 	mask = CWBackPixel | CWBorderPixel | CWColormap | CWEventMask;
 
