@@ -49,7 +49,17 @@ Output::~Output()
 
 void Output::Signal()
 {
-	enable_ = !enable_;
+    enable_ = !enable_;
+}
+
+void Output::Start()
+{
+    enable_ = true;
+}
+
+void Output::Stop()
+{
+    enable_ = false;
 }
 
 void Output::OutputReady(void *mem, size_t size, int64_t timestamp_us, bool keyframe)

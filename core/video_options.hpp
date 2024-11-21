@@ -120,6 +120,9 @@ struct VideoOptions : public Options
 			 "Break the recording into files of approximately this many milliseconds")
 			("circular", value<size_t>(&circular)->default_value(0)->implicit_value(4),
 			 "Write output to a circular buffer of the given size (in MB) which is saved on exit")
+            ("file_out_date", value<bool>(&file_out_date)->default_value(false)->implicit_value(true),
+             "Write output with date embedded in filename. strftime wildcards like %Y:%m:%d %H:%M:%S can be used")
+
 			("frames", value<unsigned int>(&frames)->default_value(0),
 			 "Run for the exact number of frames specified. This will override any timeout set.")
 #if LIBAV_PRESENT
@@ -189,6 +192,7 @@ struct VideoOptions : public Options
 	bool pause;
 	bool split;
 	uint32_t segment;
+    bool file_out_date;
 	size_t circular;
 	uint32_t frames;
 
@@ -224,7 +228,7 @@ struct VideoOptions : public Options
 			throw std::runtime_error("incorrect initial value " + initial);
 		if ((pause || split || segment || circular) && !inline_headers)
 			LOG_ERROR("WARNING: consider inline headers with 'pause'/split/segment/circular");
-		if ((split || segment) && output.find('%') == std::string::npos)
+        if ((split || segment || file_out_date) && output.find('%') == std::string::npos)
 			LOG_ERROR("WARNING: expected % directive in output filename");
 
 		// From https://en.wikipedia.org/wiki/Advanced_Video_Coding#Levels
@@ -253,6 +257,7 @@ struct VideoOptions : public Options
 		std::cerr << "    initial: " << initial << std::endl;
 		std::cerr << "    split: " << split << std::endl;
 		std::cerr << "    segment: " << segment << std::endl;
+        std::cerr << "    file_out_date: " << file_out_date << std::endl;
 		std::cerr << "    circular: " << circular << std::endl;
 	}
 

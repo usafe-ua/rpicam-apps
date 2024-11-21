@@ -18,6 +18,7 @@ typedef std::function<void(void *, size_t, int64_t, bool)> OutputReadyCallback;
 class Encoder
 {
 public:
+    //TODO: add support for pause/resume methods
 	static Encoder *Create(VideoOptions *options, StreamInfo const &info);
 
 	Encoder(VideoOptions const *options) : options_(options) {}

@@ -6,6 +6,7 @@
  */
 
 #include "file_output.hpp"
+#include <ctime>
 
 FileOutput::FileOutput(VideoOptions const *options)
 	: Output(options), fp_(nullptr), count_(0), file_start_time_ms_(0)
@@ -47,9 +48,22 @@ void FileOutput::openFile(int64_t timestamp_us)
 		fp_ = stdout;
 	else if (!options_->output.empty())
 	{
-		// Generate the next output file name.
-		char filename[256];
-		int n = snprintf(filename, sizeof(filename), options_->output.c_str(), count_);
+        char filename[256];
+        int n = -1;
+        // Generate the next output file name.
+        if (options_->file_out_date)
+        {
+            std::time_t raw_time;
+            std::time(&raw_time);
+            std::tm *time_info;
+            // Generate the next output file name.
+
+            time_info = std::localtime(&raw_time);
+            n = std::strftime(filename, sizeof(filename), options_->output.c_str(), time_info);
+        } else {
+            n = snprintf(filename, sizeof(filename), options_->output.c_str(), count_);
+        }
+
 		count_++;
 		if (options_->wrap)
 			count_ = count_ % options_->wrap;
@@ -62,7 +76,7 @@ void FileOutput::openFile(int64_t timestamp_us)
 		LOG(2, "FileOutput: opened output file " << filename);
 
 		file_start_time_ms_ = timestamp_us / 1000;
-	}
+    }
 }
 
 void FileOutput::closeFile()
