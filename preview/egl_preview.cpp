@@ -47,6 +47,7 @@ public:
 		w = max_image_width_;
 		h = max_image_height_;
 	}
+    virtual void SetOverlay(uint8_t* buf, int width, int height) override;
 
 private:
 	struct Buffer
@@ -59,6 +60,9 @@ private:
 	};
 	void makeWindow(char const *name);
 	void makeBuffer(int fd, size_t size, StreamInfo const &info, Buffer &buffer);
+    void gl_setup(int width, int height, int window_width, int window_height);
+    void setup_overlay();
+
 	::Display *display_;
 	EGLDisplay egl_display_;
 	Window window_;
@@ -75,6 +79,11 @@ private:
 	int height_;
 	unsigned int max_image_width_;
 	unsigned int max_image_height_;
+    GLint prog_;
+    float verts_[8];
+    GLint overlay_prog_;
+    bool overlay_present_ = false;
+    GLuint overlay_texture_;
 };
 
 static GLint compile_shader(GLenum target, const char *source)
@@ -131,7 +140,73 @@ static GLint link_program(GLint vs, GLint fs)
 	return prog;
 }
 
-static void gl_setup(int width, int height, int window_width, int window_height)
+void EglPreview::setup_overlay()
+{
+    const char* vs = R""""(
+             attribute vec2 aPosition;
+             varying vec2 texcoord;
+
+             void main()
+             {
+                 gl_Position = vec4(aPosition * 2.0 - 1.0, 0.0, 1.0);
+                 texcoord.x = aPosition.x;
+                 texcoord.y = 1.0 - aPosition.y;
+             })"""";
+    GLint vs_s = compile_shader(GL_VERTEX_SHADER, vs);
+    const char *fs = R""""(
+            precision mediump float;
+            varying vec2 texcoord;
+            uniform sampler2D overlay;
+
+            void main()
+            {
+                gl_FragColor = texture2D(overlay, texcoord);
+            }
+            )"""";
+    GLint fs_s = compile_shader(GL_FRAGMENT_SHADER, fs);
+    overlay_prog_ = link_program(vs_s, fs_s);
+
+    static const float verts[] = {         0.0, 0.0,
+                                           1.0, 0.0,
+                                           1.0, 1.0,
+                                           0.0, 1.0  };
+
+    GLint inputAttrib = glGetAttribLocation(overlay_prog_, "aPosition");
+    glVertexAttribPointer(inputAttrib, 2, GL_FLOAT, GL_FALSE, 0, verts);
+    glEnableVertexAttribArray(inputAttrib);
+//    glDisableVertexAttribArray(inputAttrib);
+
+    glUseProgram(overlay_prog_);
+    glUniform1i(glGetUniformLocation(overlay_prog_, "overlay"), 0);
+
+    glGenTextures(1, &overlay_texture_);
+
+    glBindTexture(GL_TEXTURE_2D, overlay_texture_);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+//    glUseProgram(prog_);
+
+    //allocate memory on the graphics card for the texture. It's fine if
+    //texture_data doesn't have any data in it, the texture will just appear black
+    //until you update it.
+    int overlay_width = width_ /4;
+    int overlay_height = height_/4;
+    std::vector<uint8_t> image(overlay_width * overlay_height * 4, 0);
+    for (int j = 0; j < overlay_height/2; ++j){
+        for (int i = 0; i < overlay_width/2; ++i){
+            image[4 * i +     j * overlay_width * 4] = 255;
+            image[4 * i + 1 + j * overlay_width * 4] = 255;
+            image[4 * i + 2 + j * overlay_width * 4] = 255;
+            image[4 * i + 3 + j * overlay_width * 4] = 255;
+        }
+    }
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, overlay_width, overlay_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data());
+}
+
+void EglPreview::gl_setup(int width, int height, int window_width, int window_height)
 {
 	float w_factor = width / (float)window_width;
 	float h_factor = height / (float)window_height;
@@ -159,13 +234,18 @@ static void gl_setup(int width, int height, int window_width, int window_height)
 					 "  gl_FragColor = texture2D(s, texcoord);\n"
 					 "}\n";
 	GLint fs_s = compile_shader(GL_FRAGMENT_SHADER, fs);
-	GLint prog = link_program(vs_s, fs_s);
+    prog_ = link_program(vs_s, fs_s);
 
-	glUseProgram(prog);
+    glUseProgram(prog_);
 
-	static const float verts[] = { -w_factor, -h_factor, w_factor, -h_factor, w_factor, h_factor, -w_factor, h_factor };
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts);
-	glEnableVertexAttribArray(0);
+    const static float verts[] = { -w_factor, -h_factor, w_factor, -h_factor, w_factor, h_factor, -w_factor, h_factor };
+    std::copy(verts, verts+sizeof(verts)/sizeof(verts[0]), verts_);
+
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts_);
+    glEnableVertexAttribArray(0);
+
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable( GL_BLEND );
 }
 
 EglPreview::EglPreview(Options const *options) : Preview(options), last_fd_(-1), first_time_(true)
@@ -196,6 +276,7 @@ EglPreview::~EglPreview()
 {
 	EglPreview::Reset();
 	eglDestroyContext(egl_display_, egl_context_);
+    glDeleteTextures(1, &overlay_texture_);
 }
 
 static void no_border(Display *display, Window window)
@@ -277,6 +358,7 @@ void EglPreview::makeWindow(char const *name)
 			EGL_RED_SIZE, 1,
 			EGL_GREEN_SIZE, 1,
 			EGL_BLUE_SIZE, 1,
+            EGL_ALPHA_SIZE, 0,
 			EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
 			EGL_NONE
 		};
@@ -375,7 +457,8 @@ void EglPreview::makeBuffer(int fd, size_t size, StreamInfo const &info, Buffer 
 		// This stuff has to be delayed until we know we're in the thread doing the display.
 		if (!eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_))
 			throw std::runtime_error("eglMakeCurrent failed");
-		gl_setup(info.width, info.height, width_, height_);
+        gl_setup(info.width, info.height, width_, height_);
+        setup_overlay();
 		first_time_ = false;
 	}
 
@@ -423,17 +506,103 @@ void EglPreview::SetInfoText(const std::string &text)
 		XStoreName(display_, window_, text.c_str());
 }
 
+void EglPreview::SetOverlay(uint8_t* buf, int width, int height){
+//    if self.picamera2.camera_config is None:
+//        raise RuntimeError("Camera must be configured before setting overlay")
+//    if self.picamera2.camera_config['buffer_count'] < 2:
+//        raise RuntimeError("Need at least buffer_count=2 to set overlay")
+
+    //TODO:
+//    with self.lock:
+
+//    if (false)
+    {
+        if (!buf){
+            overlay_present_ = false;
+//            self.repaint(self.current_request);
+        } else {
+            //TODO do I need this ?
+
+            eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
+
+            glUseProgram(overlay_prog_);
+
+            glBindTexture(GL_TEXTURE_2D, overlay_texture_);
+
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+//            glPixelStorei (GL_UNPACK_ROW_LENGTH, width_ / 4);
+//            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+            // reset to default behaviour
+//            glPixelStorei (GL_UNPACK_ROW_LENGTH, 4);
+            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+            overlay_present_ = true;
+//            self.repaint(self.current_request)
+            glUseProgram(prog_);
+
+//            eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        }
+    }
+}
+
 void EglPreview::Show(int fd, libcamera::Span<uint8_t> span, StreamInfo const &info)
 {
 	Buffer &buffer = buffers_[fd];
 	if (buffer.fd == -1)
 		makeBuffer(fd, span.size(), info, buffer);
 
+    glUseProgram(prog_);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 0, verts_);
+    glEnableVertexAttribArray(0);
+
 	glClearColor(0, 0, 0, 0);
 	glClear(GL_COLOR_BUFFER_BIT);
 
+    glEnableVertexAttribArray(0);
+
 	glBindTexture(GL_TEXTURE_EXTERNAL_OES, buffer.texture);
 	glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+
+    if (overlay_present_){
+        glUseProgram(overlay_prog_);
+        glBindTexture(GL_TEXTURE_2D, overlay_texture_);
+
+        static const float verts[] = {         0.0, 0.0,
+                                               1.0, 0.0,
+                                               1.0, 1.0,
+                                               0.0, 1.0  };
+
+        GLint inputAttrib = glGetAttribLocation(overlay_prog_, "aPosition");
+        glVertexAttribPointer(inputAttrib, 2, GL_FLOAT, GL_FALSE, 0, verts);
+        glEnableVertexAttribArray(inputAttrib);
+    //    glDisableVertexAttribArray(inputAttrib);
+
+//        glUseProgram(overlay_prog_);
+//        glUniform1i(glGetUniformLocation(overlay_prog_, "overlay"), 0);
+
+//        glGenTextures(1, &overlay_texture_);
+
+//        glBindTexture(GL_TEXTURE_2D, overlay_texture_);
+//        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+//        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+//        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+//        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+//    //    glUseProgram(prog_);
+
+//        //allocate memory on the graphics card for the texture. It's fine if
+//        //texture_data doesn't have any data in it, the texture will just appear black
+//        //until you update it.
+//        int overlay_width = width_ / 4;
+//        int overlay_height = height_ / 4;
+////        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, overlay_width, overlay_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+          glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
+    }
+
+
+
 	EGLBoolean success [[maybe_unused]] = eglSwapBuffers(egl_display_, egl_surface_);
 	if (last_fd_ >= 0)
 		done_callback_(last_fd_);

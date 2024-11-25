@@ -20,6 +20,7 @@
 #include <thread>
 #include <variant>
 #include <vector>
+#include <cstring>
 
 #include <libcamera/base/span.h>
 #include <libcamera/camera.h>
@@ -42,6 +43,21 @@ struct Mode;
 
 namespace controls = libcamera::controls;
 namespace properties = libcamera::properties;
+
+struct Overlay {
+    Overlay(){}
+    Overlay(uint8_t* buf, int width, int height, int depth):
+        width_(width), height_(height), depth_(depth)
+    {
+        buf_.resize(width * height * depth);
+        memcpy(buf_.data(), buf, buf_.size());
+    }
+    bool Empty(){ return buf_.size() == 0; }
+    std::vector<uint8_t> buf_;
+    int width_ = 0;
+    int height_ = 0;
+    int depth_ = 0;
+};
 
 class RPiCamApp
 {
@@ -163,6 +179,7 @@ public:
 	}
 
 	void ShowPreview(CompletedRequestPtr &completed_request, Stream *stream);
+    void SetPreviewOverlay(uint8_t* buf, int width, int height);
 
 	void SetControls(const ControlList &controls);
 	StreamInfo GetStreamInfo(Stream const *stream) const;
@@ -272,6 +289,8 @@ private:
 	std::mutex preview_mutex_;
 	std::mutex preview_item_mutex_;
 	PreviewItem preview_item_;
+    std::mutex overlay_mutex_;
+    Overlay overlay;
 	std::condition_variable preview_cond_var_;
 	bool preview_abort_ = false;
 	uint32_t preview_frames_displayed_ = 0;

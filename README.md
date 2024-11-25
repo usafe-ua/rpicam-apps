@@ -17,3 +17,12 @@ Status
 ------
 
 [![ToT libcamera build/run test](https://github.com/raspberrypi/rpicam-apps/actions/workflows/rpicam-test.yml/badge.svg)](https://github.com/raspberrypi/rpicam-apps/actions/workflows/rpicam-test.yml)
+
+
+#rpicam dependencies:
+sudo apt-get install libexif-dev libjpeg-dev libtiff-dev libpng-dev libqt5opengl5-dev libavdevice-dev libepoxy-dev libdrm-dev
+#rpicam setup cmd
+meson setup build -Denable_libav=enabled -Denable_drm=disabled -Denable_egl=enabled -Denable_qt=enabled -Denable_opencv=disabled -Denable_tflite=disabled -Denable_hailo=disabled
+cd build
+meson compile
+sudo meson install

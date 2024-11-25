@@ -38,6 +38,11 @@ public:
 	// Return the maximum image size allowed.
 	virtual void MaxImageSize(unsigned int &w, unsigned int &h) const = 0;
 
+    virtual void SetOverlay(uint8_t* buf, int width, int height)
+    {
+        //default implementation == not supported
+    }
+
 protected:
 	DoneCallback done_callback_;
 	Options const *options_;

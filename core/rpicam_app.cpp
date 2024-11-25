@@ -1031,6 +1031,13 @@ void RPiCamApp::ShowPreview(CompletedRequestPtr &completed_request, Stream *stre
 	preview_cond_var_.notify_one();
 }
 
+void RPiCamApp::SetPreviewOverlay(uint8_t* buf, int width, int height)
+{
+    //TODO: measure if it's OK to hold the lock for the entire duration of SetOvelray function or maybe we need to optimize
+    std::lock_guard<std::mutex> lock(overlay_mutex_);
+    overlay = Overlay(buf, width, height, 4);
+}
+
 void RPiCamApp::SetControls(const ControlList &controls)
 {
 	std::lock_guard<std::mutex> lock(control_mutex_);
@@ -1265,6 +1272,16 @@ void RPiCamApp::previewThread()
 			LOG(2, "Preview window has quit");
 			msg_queue_.Post(Msg(MsgType::Quit));
 		}
+
+
+        {
+            std::unique_lock<std::mutex> lock(overlay_mutex_);
+            if (!overlay.Empty()){
+                //need to update overlay buffer
+                preview_->SetOverlay(overlay.buf_.data(), overlay.width_, overlay.height_);
+                overlay = Overlay();
+            }
+        }
 		preview_frames_displayed_++;
 		preview_->Show(fd, span, info);
 		if (!options_->info_text.empty())
