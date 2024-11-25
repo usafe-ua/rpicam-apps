@@ -1035,7 +1035,7 @@ void RPiCamApp::SetPreviewOverlay(uint8_t* buf, int width, int height)
 {
     //TODO: measure if it's OK to hold the lock for the entire duration of SetOvelray function or maybe we need to optimize
     std::lock_guard<std::mutex> lock(overlay_mutex_);
-    overlay = Overlay(buf, width, height, 4);
+    overlay.Replace(buf, width, height);
 }
 
 void RPiCamApp::SetControls(const ControlList &controls)
@@ -1276,10 +1276,10 @@ void RPiCamApp::previewThread()
 
         {
             std::unique_lock<std::mutex> lock(overlay_mutex_);
-            if (!overlay.Empty()){
+            if (overlay.WasUpdated()){
                 //need to update overlay buffer
                 preview_->SetOverlay(overlay.buf_.data(), overlay.width_, overlay.height_);
-                overlay = Overlay();
+                overlay.Updated(false);
             }
         }
 		preview_frames_displayed_++;

@@ -187,23 +187,14 @@ void EglPreview::setup_overlay()
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
-//    glUseProgram(prog_);
-
     //allocate memory on the graphics card for the texture. It's fine if
     //texture_data doesn't have any data in it, the texture will just appear black
     //until you update it.
+
     int overlay_width = width_ /4;
     int overlay_height = height_/4;
-    std::vector<uint8_t> image(overlay_width * overlay_height * 4, 0);
-    for (int j = 0; j < overlay_height/2; ++j){
-        for (int i = 0; i < overlay_width/2; ++i){
-            image[4 * i +     j * overlay_width * 4] = 255;
-            image[4 * i + 1 + j * overlay_width * 4] = 255;
-            image[4 * i + 2 + j * overlay_width * 4] = 255;
-            image[4 * i + 3 + j * overlay_width * 4] = 255;
-        }
-    }
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, overlay_width, overlay_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, image.data());
+
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, overlay_width, overlay_height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
 }
 
 void EglPreview::gl_setup(int width, int height, int window_width, int window_height)
@@ -507,44 +498,21 @@ void EglPreview::SetInfoText(const std::string &text)
 }
 
 void EglPreview::SetOverlay(uint8_t* buf, int width, int height){
-//    if self.picamera2.camera_config is None:
-//        raise RuntimeError("Camera must be configured before setting overlay")
-//    if self.picamera2.camera_config['buffer_count'] < 2:
-//        raise RuntimeError("Need at least buffer_count=2 to set overlay")
-
-    //TODO:
-//    with self.lock:
-
-//    if (false)
-    {
-        if (!buf){
-            overlay_present_ = false;
-//            self.repaint(self.current_request);
-        } else {
-            //TODO do I need this ?
-
-            eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
-
-            glUseProgram(overlay_prog_);
-
-            glBindTexture(GL_TEXTURE_2D, overlay_texture_);
-
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-//            glPixelStorei (GL_UNPACK_ROW_LENGTH, width_ / 4);
-//            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buf);
-            // reset to default behaviour
-//            glPixelStorei (GL_UNPACK_ROW_LENGTH, 4);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
-            overlay_present_ = true;
-//            self.repaint(self.current_request)
-            glUseProgram(prog_);
-
-//            eglMakeCurrent(egl_display_, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-        }
+    if (!buf){
+        overlay_present_ = false;
+        return;
     }
+
+    eglMakeCurrent(egl_display_, egl_surface_, egl_surface_, egl_context_);
+
+
+    glBindTexture(GL_TEXTURE_2D, overlay_texture_);
+//            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+//            glPixelStorei (GL_UNPACK_ROW_LENGTH, 4);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
+    overlay_present_ = true;
+
+    glBindTexture( GL_TEXTURE_2D, 0);
 }
 
 void EglPreview::Show(int fd, libcamera::Span<uint8_t> span, StreamInfo const &info)

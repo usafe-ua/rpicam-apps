@@ -46,17 +46,27 @@ namespace properties = libcamera::properties;
 
 struct Overlay {
     Overlay(){}
-    Overlay(uint8_t* buf, int width, int height, int depth):
-        width_(width), height_(height), depth_(depth)
+    void Replace(uint8_t* buf, int width, int height)
     {
-        buf_.resize(width * height * depth);
+        width_  = width;
+        height_ = height;
+        unsigned newSize = width * height * depth_;
+        if (buf_.size() != newSize)
+        {
+            buf_.resize(newSize);
+        }
+
         memcpy(buf_.data(), buf, buf_.size());
+        updated_ = true;
     }
-    bool Empty(){ return buf_.size() == 0; }
+    bool WasUpdated(){ return updated_; }
+    void Updated(bool isUpdated) { updated_ = isUpdated; }
+
     std::vector<uint8_t> buf_;
     int width_ = 0;
     int height_ = 0;
-    int depth_ = 0;
+    int depth_ = 4;
+    bool updated_ = false;
 };
 
 class RPiCamApp
