@@ -48,9 +48,18 @@ struct Overlay {
     Overlay(){}
     void Replace(uint8_t* buf, int width, int height)
     {
+        valid_ = buf;
+
+        if (!buf)
+        {
+            updated_ = true;
+            return;
+        }
+
         width_  = width;
         height_ = height;
         unsigned newSize = width * height * depth_;
+
         if (buf_.size() != newSize)
         {
             buf_.resize(newSize);
@@ -61,12 +70,14 @@ struct Overlay {
     }
     bool WasUpdated(){ return updated_; }
     void Updated(bool isUpdated) { updated_ = isUpdated; }
+    bool Valid() const {return valid_; }
 
     std::vector<uint8_t> buf_;
     int width_ = 0;
     int height_ = 0;
     int depth_ = 4;
     bool updated_ = false;
+    bool valid_ = false;
 };
 
 class RPiCamApp

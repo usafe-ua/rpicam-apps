@@ -1278,7 +1278,12 @@ void RPiCamApp::previewThread()
             std::unique_lock<std::mutex> lock(overlay_mutex_);
             if (overlay.WasUpdated()){
                 //need to update overlay buffer
-                preview_->SetOverlay(overlay.buf_.data(), overlay.width_, overlay.height_);
+                if (overlay.Valid())
+                {
+                    preview_->SetOverlay(overlay.buf_.data(), overlay.width_, overlay.height_);
+                } else {
+                    preview_->SetOverlay(nullptr, overlay.width_, overlay.height_);
+                }
                 overlay.Updated(false);
             }
         }

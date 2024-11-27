@@ -507,6 +507,7 @@ void EglPreview::SetOverlay(uint8_t* buf, int width, int height){
 
 
     glBindTexture(GL_TEXTURE_2D, overlay_texture_);
+//    glPixelStorei(GL_UNPACK_ROW_LENGTH, quadTextureSize);
 //            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, buf);
 //            glPixelStorei (GL_UNPACK_ROW_LENGTH, 4);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, buf);
