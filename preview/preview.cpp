@@ -56,6 +56,8 @@ Preview *make_preview(Options const *options)
 			catch (std::exception const &e)
 			{
 				LOG(1, "Preview window unavailable");
+                //force program restart
+                exit(1);
 				return make_null_preview(options);
 			}
 		}
