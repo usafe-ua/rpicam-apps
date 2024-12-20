@@ -11,6 +11,7 @@
 #include <libcamera/color_space.h>
 #include <libcamera/pixel_format.h>
 
+
 struct StreamInfo
 {
 	StreamInfo() : width(0), height(0), stride(0) {}

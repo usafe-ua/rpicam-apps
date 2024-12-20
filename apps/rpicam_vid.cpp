@@ -54,7 +54,7 @@ static int get_key_or_signal(VideoOptions const *options, pollfd p[1])
 
 static int get_colourspace_flags(std::string const &codec)
 {
-	if (codec == "mjpeg" || codec == "yuv420")
+    if (codec == "mjpeg" || codec == "yuv420" || codec == "h264")
 		return RPiCamEncoder::FLAG_VIDEO_JPEG_COLOURSPACE;
 	else
 		return RPiCamEncoder::FLAG_VIDEO_NONE;
