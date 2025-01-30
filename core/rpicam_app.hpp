@@ -176,7 +176,7 @@ public:
 	void ConfigureStill(unsigned int flags = FLAG_STILL_NONE);
 	void ConfigureVideo(unsigned int flags = FLAG_VIDEO_NONE);
 	void ConfigureZsl(unsigned int still_flags = FLAG_STILL_NONE);
-    void ConfigureTracker();
+    void ConfigureTracker(unsigned int flags = FLAG_STILL_NONE);
 
 	void Teardown();
 	void StartCamera();
@@ -191,6 +191,7 @@ public:
 	Stream *RawStream(StreamInfo *info = nullptr) const;
 	Stream *VideoStream(StreamInfo *info = nullptr) const;
 	Stream *LoresStream(StreamInfo *info = nullptr) const;
+	Stream *TrackerStream(StreamInfo *info = nullptr) const;
 	Stream *GetMainStream() const;
 
 	const CameraManager *GetCameraManager() const;

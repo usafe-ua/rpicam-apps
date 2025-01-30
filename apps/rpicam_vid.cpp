@@ -119,6 +119,14 @@ static void event_loop(RPiCamEncoder &app)
 		}
 
 		CompletedRequestPtr &completed_request = std::get<CompletedRequestPtr>(msg.payload);
+		
+		auto ts = completed_request->metadata.get(controls::SensorTimestamp);
+		int64_t timestamp_ns = *ts;
+		auto now_ts = std::chrono::steady_clock::now();
+		auto now_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(now_ts.time_since_epoch());
+
+		LOG(2, "Frame " << count << " delay: " << (now_ns.count() - timestamp_ns)/1000000 << "ms");
+
 		app.EncodeBuffer(completed_request, app.VideoStream());
 		app.ShowPreview(completed_request, app.VideoStream());
 	}
@@ -134,6 +142,12 @@ int main(int argc, char *argv[])
 		{
 			if (options->verbose >= 2)
 				options->Print();
+
+			options->tracker_width = 1920;
+			options->tracker_height = 1080;
+
+			// gstreamer output example:
+			//options->output = "appsrc name=appsrc ! h264parse ! rtph264pay ! udpsink host=192.168.0.92 port=5000";
 
 			event_loop(app);
 		}

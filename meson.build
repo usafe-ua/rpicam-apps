@@ -36,6 +36,9 @@ endif
 dl_dep = dependency('dl', required : true)
 libcamera_dep = dependency('libcamera', required : true)
 
+gst_deps = dependency('gstreamer-1.0', required: true)
+gst_base_deps = dependency('gstreamer-base-1.0', required: true)
+
 summary({
             'location' : libcamera_dep.get_variable('libdir'),
             'version' : libcamera_dep.version()
@@ -43,7 +46,7 @@ summary({
         section : 'libcamera')
 
 rpicam_app_src = []
-rpicam_app_dep = [libcamera_dep, dl_dep]
+rpicam_app_dep = [libcamera_dep, dl_dep, gst_deps, gst_base_deps]
 
 subdir('core')
 subdir('encoder')
