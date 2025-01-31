@@ -278,5 +278,15 @@ void PostProcessor::Teardown()
 	for (auto &stage : stages_)
 	{
 		stage->Teardown();
-	}
+    }
+}
+
+PostProcessingStage* PostProcessor::FindStage(const std::string &name)
+{
+    auto iter = std::find_if(stages_.begin(), stages_.end(), [&name](StagePtr& ptr){ return ptr->Name() == name; });
+    if (iter != stages_.end())
+    {
+        return iter->get();
+    }
+    return nullptr;
 }

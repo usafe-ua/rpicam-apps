@@ -72,6 +72,8 @@ public:
 
 	void Teardown();
 
+    PostProcessingStage* FindStage(const std::string& name);
+
 private:
 	PostProcessingStage *createPostProcessingStage(char const *name);
 

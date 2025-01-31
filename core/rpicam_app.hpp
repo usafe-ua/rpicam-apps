@@ -202,6 +202,10 @@ public:
 
 	void ShowPreview(CompletedRequestPtr &completed_request, Stream *stream);
     void SetPreviewOverlay(uint8_t* buf, int width, int height);
+    PostProcessingStage* FindPostProcessorStage(const std::string& name)
+    {
+        return post_processor_.FindStage(name);
+    }
 
 	void SetControls(const ControlList &controls);
 	StreamInfo GetStreamInfo(Stream const *stream) const;
