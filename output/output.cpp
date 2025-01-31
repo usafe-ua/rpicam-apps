@@ -11,6 +11,7 @@
 #include "circular_output.hpp"
 #include "file_output.hpp"
 #include "net_output.hpp"
+#include "gstream_output.hpp"
 #include "output.hpp"
 
 Output::Output(VideoOptions const *options)
@@ -116,6 +117,8 @@ Output *Output::Create(VideoOptions const *options)
 
 	if (strncmp(options->output.c_str(), "udp://", 6) == 0 || strncmp(options->output.c_str(), "tcp://", 6) == 0)
 		return new NetOutput(options);
+	else if(strncmp(options->output.c_str(), "appsrc name=appsrc !", 20) == 0)
+		return new GStreamOutput(options);
 	else if (options->circular)
 		return new CircularOutput(options);
 	else if (!options->output.empty())
