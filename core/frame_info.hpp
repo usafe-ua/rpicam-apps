@@ -4,6 +4,7 @@
  *
  * frame_info.hpp - Frame info class for libcamera apps
  */
+#pragma once
 #include <array>
 #include <iomanip>
 #include <sstream>
