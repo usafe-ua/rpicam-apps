@@ -48,6 +48,8 @@ summary({
 rpicam_app_src = []
 rpicam_app_dep = [libcamera_dep, dl_dep, gst_deps, gst_base_deps]
 
+add_project_arguments(cpp_arguments, language : 'cpp')
+
 subdir('core')
 subdir('encoder')
 subdir('image')
@@ -55,7 +57,7 @@ subdir('output')
 subdir('preview')
 subdir('utils')
 
-add_project_arguments(cpp_arguments, language : 'cpp')
+
 
 # Must be put after add_project_arguments as it defines shared library targets.
 subdir('post_processing_stages')
